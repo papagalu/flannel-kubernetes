@@ -38,5 +38,5 @@
   win_environment:
     state: present
     name: 'KUBECONFIG'
-    value: 'C:\k\config'
+    value: "{{ install_path }}/config"
     level: user

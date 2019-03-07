@@ -1,7 +1,7 @@
 ---
 - name: Kubernetes | Get current subnet
   win_shell: |
-    ipmo C:\k\helper.psm1
+    ipmo "{{ install_path }}\helper.psm1"
     Get-MgmtSubnet
   register: mgmtsubnet
 
@@ -11,7 +11,7 @@
 - name: Kubernetes | Update CNI Config
   win_shell: |
     $ErrorActionPreference = "Stop"
-    $CNIConfig = "C:\k\cni\config\cni.conf"
+    $CNIConfig = "{{ install_path }}\cni\config\cni.conf"
     $jsonSampleConfig = '{
     "cniVersion": "0.2.0",
     "name": "cbr0",
@@ -180,7 +180,7 @@
       service-name=flanneld
 
       service-command="{{ install_path }}\\flanneld.exe"
-      --kubeconfig-file=C:\k\config --iface={{ host_public_ip }}
+      --kubeconfig-file="{{ install_path }}\config" --iface={{ host_public_ip }}
       --ip-masq=1 --kube-subnet-mgr=1
 
 - name: Flanneld | Create Flanneld Windows service
