@@ -16,6 +16,7 @@ K8S_API_SERVICE_IP: "10.96.0.1"
 
 # flannel mode
 FLANNEL_MODE: "host-gw"
+FLANNEL_BRIDGE_NAME: "cbr0"
 
 # set this to true to build kubernetes only on master and then
 # distribute on the minion nodes. Set this to false if you have different
