@@ -24,7 +24,14 @@
         --tls-private-key-file={{ kubernetes_certificates.directory }}/apiserver-key.pem \
         --client-ca-file={{ kubernetes_certificates.directory }}/ca.pem \
         --service-account-key-file={{ kubernetes_certificates.directory }}/apiserver-key.pem \
-        --runtime-config=extensions/v1beta1=true,extensions/v1beta1/networkpolicies=true,batch/v2alpha1=true
+        --runtime-config=extensions/v1beta1=true,extensions/v1beta1/networkpolicies=true,batch/v2alpha1=true \
+        --requestheader-allowed-names= \
+        --requestheader-client-ca-file={{ kubernetes_certificates.directory }}/front-proxy-ca.pem \
+        --requestheader-extra-headers-prefix=X-Remote-Extra- \
+        --requestheader-group-headers=X-Remote-Group \
+        --requestheader-username-headers=X-Remote-User \
+        --proxy-client-cert-file={{ kubernetes_certificates.directory }}/front-proxy-client.pem \
+        --proxy-client-key-file={{ kubernetes_certificates.directory }}/front-proxy-key-client.pem
       Restart=on-failure
       RestartSec=10
       WorkingDirectory=/root/
@@ -193,11 +200,6 @@
           user: kubelet
         name: kubelet-context
       current-context: kubelet-context
-
-- name: Kubernetes Master | Generate the client certificates for the current minion
-  import_role:
-    name: linux/common
-    tasks_from: k8s_client_certs
 
 - name: Kubernetes Master | Create service kubelet
   blockinfile:
