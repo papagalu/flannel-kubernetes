@@ -70,7 +70,7 @@
       --cluster-dns="{{ kubernetes_info.K8S_DNS_SERVICE_IP }}"
       --cluster-domain="{{ kubernetes_info.K8S_DNS_DOMAIN }}"
       --pod-infra-container-image="kubeletwin/pause"
-      --kubeconfig="{{ install_path }}\\kubeconfig.yaml"
+      --kubeconfig="{{ install_path }}\\config"
       --hairpin-mode=promiscuous-bridge
       --image-pull-progress-deadline=20m
       --cgroups-per-qos=false
@@ -125,7 +125,7 @@
       service-name=flanneld
 
       service-command="{{ install_path }}\\flanneld.exe"
-      --kubeconfig-file=C:\k\config --iface={{ host_public_ip }}
+      --kubeconfig-file="{{ install_path }}\config" --iface={{ host_public_ip }}
       --ip-masq=1 --kube-subnet-mgr=1
 
 - name: Flanneld | Create Flanneld Windows service
