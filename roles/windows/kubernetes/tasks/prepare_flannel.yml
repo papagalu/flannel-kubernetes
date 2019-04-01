@@ -1,31 +1,9 @@
 ---
-- name: Flannel | Download archive that contains flannel prerequisites
-  win_get_url:
-    url: "{{ download_links.flannel_master_zip }}"
-    dest: C:\k\master.zip
-
-- name: Flannel | Unzip archive
-  win_unzip:
-    src: "{{ install_path }}/master.zip"
-    dest: "{{ install_path }}/master"
-    creates: "{{ install_path }}/master"
-
-- name: Flannel | Copy CNI and Flannel config
-  win_copy:
-    src: "{{ install_path }}/master/SDN-master/Kubernetes/flannel/l2bridge"
-    dest: "{{ install_path }}"
-    remote_src: yes
-
-- name: Flannel | Remove extracted files that are not used
-  win_file:
-    path: "{{ install_path }}/master"
-    state: absent
-
 - name: Flannel | Set kubeconfig
   win_environment:
     state: present
     name: 'KUBECONFIG'
-    value: 'C:\k\config'
+    value: "{{ install_path }}/config"
     level: user
 
 - name: Flannel | Copy config
@@ -57,36 +35,134 @@
     cd {{ install_path }}
     docker build -t kubeletwin/pause .
 
-- name: Flannel | Download download.ps1
+- name: Flannel | Download flanneld binary
   win_get_url:
-    url: "{{ download_links.download_script }}"
-    dest: C:\k\download.ps1
+     url: "{{ flanneld_binary }}"
+     dest: "{{ install_path }}"
 
-- name: Flannel | Start downloads
-  win_shell: |
-    cd C:\k
-    .\download.ps1
+- name: Flannel | Create flannel cni dir
+  win_file:
+    path: "{{ install_path }}/cni"
+    state: directory
 
-- name: Flannel | Create hns network
+- name: Flannel | Create flannel cni config dir
+  win_file:
+    path: "{{ install_path }}/cni/config"
+    state: directory
+
+- name: Flannel | Download l2bridge cni binaries
+  win_get_url:
+     url: "{{ item }}"
+     dest: "{{ install_path }}/cni/{{ item | basename }}"
+  with_items:
+    - "{{ flannel_binaries.windows_l2bridge }}"
+  when: FLANNEL_MODE == "host-gw"
+
+- name: Flannel | Download overaly cni binaries
+  win_get_url:
+     url: "{{ item }}"
+     dest: "{{ install_path }}/cni/{{ item | basename }}"
+  with_items:
+    - "{{ flannel_binaries.windows_overlay }}"
+  when: FLANNEL_MODE == "overlay"
+
+- name: Flannel | Download l2bridge flannel net-conf
+  win_get_url:
+     url: "{{ flannel_net_conf.windows_l2bridge }}"
+     dest: "{{ install_path }}/net-conf.json" 
+  when: FLANNEL_MODE == "host-gw"
+
+- name: Flannel | Download overlay flannel net-conf
+  win_get_url:
+     url: "{{ flannel_net_conf.windows_overlay }}"
+     dest: "{{ install_path }}/net-conf.json" 
+  when: FLANNEL_MODE == "overlay"
+
+- name: Flannel | Download l2bridge flannel cni-conf
+  win_get_url:
+     url: "{{ flannel_cni_conf.windows_l2bridge }}"
+     dest: "{{ install_path }}/cni/config/cni.conf" 
+  when: FLANNEL_MODE == "host-gw"
+
+- name: Flannel | Download overlay flannel cni-conf
+  win_get_url:
+     url: "{{ flannel_cni_conf.windows_overlay }}"
+     dest: "{{ install_path }}/cni/config/cni.conf" 
+  when: FLANNEL_MODE == "overlay"
+
+- name: Flannel | Download hns.psm1
+  win_get_url:
+     url: "{{ download_links.hns_module }}"
+     dest: "{{ install_path }}/{{ download_links.hns_module | basename }}"
+
+- name: Flannel | Set network mode and name
+  set_fact:
+    networkName: "cbr0"
+    networkMode: "l2bridge"
+  when: FLANNEL_MODE == "host-gw"
+
+- name: Flannel | Set network mode and name
+  set_fact:
+    networkName: "vxlan0"
+    networkMode: "overlay"
+  when: FLANNEL_MODE == "overlay"
+
+- name: Flannel | Cleanup old Hns Network
   win_shell: |
     $ErrorActionPreference = "Stop"
-    cd C:\k
-    Import-Module C:\k\hns.psm1
-    $hnsNetwork = Get-HnsNetwork | ? Name -eq "cbr0"
+    cd "{{ install_path }}"
+    Import-Module "{{ install_path }}/hns.psm1"
+    $hnsNetwork = Get-HnsNetwork | ? Name -eq "External"
     if ($hnsNetwork)
     {
         docker ps -q | foreach {docker rm $_ -f} 
 
-        Write-Host "Cleaning up old HNS network found"
         Write-Host ($hnsNetwork | ConvertTo-Json -Depth 10) 
         Remove-HnsNetwork $hnsNetwork
     }
+  async: 10
+  poll: 0
+
+- name: Flannel | Create l2bridge External Network
+  win_shell: |
+    Import-Module "{{ install_path }}/hns.psm1"
     if(!(Get-HnsNetwork | ? Name -eq "External"))
     {
-        New-HNSNetwork -Type L2Bridge -AddressPrefix "192.168.255.0/30" -Gateway "192.168.255.1" -Name "External" -Verbose
+        New-HNSNetwork -Type {{ networkMode }} -AddressPrefix "192.168.255.0/30" -Gateway "192.168.255.1" -Name "External" -Verbose
     }
   async: 10
   poll: 0
+  when: FLANNEL_MODE == "host-gw"
+
+- name: Flannel | Wait for connection
+  wait_for_connection:
+    delay: 5
+    timeout: 60
+
+- name: Flannel | Open firewall for overlay traffic
+  win_shell: |
+    # Open firewall for Overlay traffic
+    New-NetFirewallRule -Name OverlayTraffic4789UDP -Description "Overlay network traffic UDP" -Action Allow -LocalPort 4789 -Enabled True -DisplayName "Overlay Traffic 4789 UDP" -Protocol UDP -ErrorAction SilentlyContinue
+  ignore_errors: True
+  when: FLANNEL_MODE == "overlay" 
+
+- name: Flannel | Open firewall for kube-proxy port
+  win_shell: |
+    # Open firewall for Overlay traffic
+    New-NetFirewallRule -Name kubeProxy10250TCP -Description "TCP traffic for kube-proxy" -Action Allow -LocalPort 10250 -Enabled True -DisplayName "Kube-Proxy Traffic 10250 TCP" -Protocol TCP -ErrorAction SilentlyContinue
+  ignore_errors: True
+  when: FLANNEL_MODE == "overlay"
+
+- name: Flannel | Create overlay External Network
+  win_shell: |
+    Import-Module "{{ install_path }}/hns.psm1"
+    if(!(Get-HnsNetwork | ? Name -eq "External"))
+    {
+        New-HNSNetwork -Type {{ networkMode }} -AddressPrefix "192.168.255.0/30" -Gateway "192.168.255.1" -Name "External" -SubnetPolicies @(@{Type = "VSID"; VSID = 9999; })  -Verbose
+    }
+  async: 10
+  poll: 0
+  when: FLANNEL_MODE == "overlay"  
 
 - name: Flannel | Wait for connection
   wait_for_connection:

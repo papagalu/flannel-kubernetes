@@ -11,12 +11,39 @@ kubernetes_info:
   K8S_DNS_SERVICE_IP: "{{K8S_DNS_SERVICE_IP | default('10.96.0.10')}}"
   K8S_API_SERVICE_IP: "{{K8S_API_SERVICE_IP | default('10.96.0.1')}}"
 
+flanneld_binary: "https://github.com/adelina-t/flannel-kubernetes/releases/download/test/flanneld.exe"
+flannel_binaries:
+  windows_l2bridge:
+    - https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/l2bridge/cni/flannel.exe
+    - https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/l2bridge/cni/win-bridge.exe
+    - https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/l2bridge/cni/host-local.exe
+  windows_overlay:
+    - https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/l2bridge/cni/flannel.exe
+    - https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/overlay/cni/win-overlay.exe
+    - https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/l2bridge/cni/host-local.exe
+
+    
+flannel_net_conf:
+  windows_l2bridge: https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/l2bridge/net-conf.json
+  windows_overlay: https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/overlay/net-conf.json
+
+flannel_cni_conf:
+  windows_l2bridge: https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/l2bridge/cni/config/cni.conf
+  windows_overlay: https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/flannel/overlay/cni/config/cni.conf  
+
+kubernetes_scripts:
+  - https://github.com/$GithubSDNRepository/raw/master/Kubernetes/flannel/start-kubelet.ps1
+  - https://github.com/$GithubSDNRepository/raw/master/Kubernetes/flannel/start-kubeproxy.ps1
+
 download_info:
   install_path: "{{install_path | default('C:/k')}}"
 
+kube_flannel_path: 'C:/etc/kube-flannel'
+
 download_links:
   flannel_master_zip: "https://github.com/Microsoft/SDN/archive/master.zip"
-  download_script: "https://raw.githubusercontent.com/papagalu/custom-flannel-startscript/master/download.ps1"
+  hns_module: "https://github.com/Microsoft/SDN/raw/master/Kubernetes/windows/hns.psm1"
+  helper_module: "https://raw.githubusercontent.com/Microsoft/SDN/master/Kubernetes/windows/helper.psm1"
 
 docker_images:
   1809: "mcr.microsoft.com/windows/nanoserver:1809"
