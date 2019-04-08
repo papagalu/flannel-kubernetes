@@ -24,7 +24,6 @@
   win_file:
      path: "{{ kube_flannel_path }}"
      state: directory
-  when: FLANNEL_MODE == "overlay"
 
 - name: Kubernetes | Copy net-conf.json to kube-flannel dir
   win_copy:
