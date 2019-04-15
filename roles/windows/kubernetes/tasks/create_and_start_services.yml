@@ -7,9 +7,6 @@
 - set_fact:
     helper_module_path: "{{ install_path }}/helper.psm1"
 
-- set_fact:
-    mgmtsubnet: "{{ mgmtsubnet.stdout | trim }}"
-
 - name: Kubernetes | Update CNI Config
   win_shell: |
     ipmo "{{ helper_module_path }}"
