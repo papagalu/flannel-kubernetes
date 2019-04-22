@@ -7,19 +7,10 @@
 - set_fact:
     helper_module_path: "{{ install_path }}/helper.psm1"
 
-- name: Kubernetes | Get current subnet
-  win_shell: |
-    ipmo "{{ helper_module_path }}"
-    Get-MgmtSubnet
-  register: mgmtsubnet
-
-- set_fact:
-    mgmtsubnet: "{{ mgmtsubnet.stdout | trim }}"
-
 - name: Kubernetes | Update CNI Config
   win_shell: |
     ipmo "{{ helper_module_path }}"
-    Update-CNIConfig "{{ install_path }}/cni/config/cni.conf" "{{ CLUSTER_SUBNET }}" "{{ kubernetes_info.K8S_DNS_SERVICE_IP }}" "{{ SERVICE_CLUSTER_IP_RANGE }}" "{{ mgmtsubnet }}" "{{ networkName }}" "{{ networkMode }}"
+    Update-CNIConfig "{{ install_path }}/cni/config/cni.conf" "{{ CLUSTER_SUBNET }}" "{{ kubernetes_info.K8S_DNS_SERVICE_IP }}" "{{ SERVICE_CLUSTER_IP_RANGE }}" "Ethernet" "{{ networkName }}" "{{ networkMode }}"
 
 - name: Kubernetes | Update net-conf.json
   win_shell: |
@@ -30,7 +21,6 @@
   win_file:
      path: "{{ kube_flannel_path }}"
      state: directory
-  when: FLANNEL_MODE == "overlay"
 
 - name: Kubernetes | Copy net-conf.json to kube-flannel dir
   win_copy:
